@@ -1,0 +1,1414 @@
+{
+  "info": {
+    "_postman_id": "0db3c413-6967-48b9-90a1-836a5597c0ea",
+    "name": "QA PORTFOLIO 02 | Authenticated API Testing",
+    "description": "Projeto de estudos de QA - Bianca | QA Júnior em formação.\n\nSistema testado: Restful-Booker (https://restful-booker.herokuapp.com), API pública de prática criada para ensino de testes. Segundo o próprio site, ela contém bugs propositais e volta ao estado inicial a cada 10 minutos.\n\nCredenciais: admin/password123 são credenciais PÚBLICAS de demonstração, publicadas na documentação da API. O token é gerado em tempo de execução, nunca é gravado em arquivo e é apagado no TD-01.\n\nExecução: rode as pastas 01 a 05 e 99 em ordem (há dependências por variável). A pasta 06 reúne defeitos conhecidos. A pasta 07 exige arquivo de dados (data/*.json).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Autenticacao",
+      "description": "Geração de token e recusa de credenciais inválidas.",
+      "item": [
+        {
+          "name": "CT-001 | GET | Verificar disponibilidade da API (HealthCheck)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-001 - A documentação (Ping - HealthCheck) define 201 Created para API no ar.",
+                  "// Este teste também funciona como \"porta de entrada\": se falhar, o ambiente está indisponível.",
+                  "pm.test(\"Status HTTP 201 Created (documentado)\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ping",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-002 | POST | Gerar token com credenciais válidas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-002 - Autenticação com as credenciais públicas de demonstração (documentadas pela própria API).",
+                  "pm.test(\"Status HTTP 200 OK (documentado)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test(\"Contrato: resposta segue o JSON Schema de autenticação\", function () {",
+                  "    const schema = JSON.parse(pm.collectionVariables.get(\"schemaAuth\")); // JSON Schema guardado na collection",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test(\"Token é uma string não vazia\", function () {",
+                  "    pm.expect(corpo.token).to.be.a(\"string\").and.not.be.empty;",
+                  "});",
+                  "",
+                  "// Guarda o token TEMPORARIAMENTE (variável de collection, apagada no TD-01).",
+                  "// O valor nunca é impresso em console nem em relatório.",
+                  "pm.collectionVariables.set(\"token\", corpo.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-003 | POST | Recusar token com senha inválida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-003 - Credenciais inválidas.",
+                  "// A documentação NÃO define o código de erro. Na exploração, a API respondeu 200 com {\"reason\":\"Bad credentials\"}.",
+                  "// Por isso o teste valida o que importa para a segurança (nenhum token é emitido)",
+                  "// e registra o status observado, sem presumir 401.",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test(\"Nenhum token é emitido para credenciais inválidas\", function () {",
+                  "    pm.expect(corpo).to.not.have.property(\"token\");",
+                  "});",
+                  "",
+                  "pm.test(\"Mensagem de erro informa 'Bad credentials'\", function () {",
+                  "    pm.expect(corpo.reason).to.eql(\"Bad credentials\");",
+                  "});",
+                  "",
+                  "console.log(\"CT-003 - status observado para credenciais inválidas:\", pm.response.code);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{invalidPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-004 | POST | Recusar token com corpo sem credenciais",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-004 - Campos obrigatórios ausentes na autenticação (corpo vazio).",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test(\"Nenhum token é emitido sem credenciais\", function () {",
+                  "    pm.expect(corpo).to.not.have.property(\"token\");",
+                  "});",
+                  "",
+                  "pm.test(\"Mensagem de erro informa 'Bad credentials'\", function () {",
+                  "    pm.expect(corpo.reason).to.eql(\"Bad credentials\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - CRUD",
+      "description": "Ciclo completo: criar, consultar, buscar, atualizar (PUT/PATCH) e validar.",
+      "item": [
+        {
+          "name": "CT-005 | POST | Criar reserva com dados válidos",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Pre-request: monta uma reserva fictícia com sobrenome único por execução,",
+                  "// para que a busca e a limpeza atinjam SOMENTE o registro criado por este teste.",
+                  "const runId = Date.now().toString();",
+                  "pm.collectionVariables.set(\"runId\", runId);",
+                  "",
+                  "const reserva = {",
+                  "    firstname: \"Ana\",",
+                  "    lastname: \"QA-Portfolio-\" + runId,",
+                  "    totalprice: 150,",
+                  "    depositpaid: true,",
+                  "    bookingdates: { checkin: \"2026-11-10\", checkout: \"2026-11-12\" },",
+                  "    additionalneeds: \"Cafe da manha\"",
+                  "};",
+                  "pm.collectionVariables.set(\"reservaEnviada\", JSON.stringify(reserva));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-005 - CREATE. Documentação: 200 OK com { bookingid, booking }.",
+                  "pm.test(\"Status HTTP 200 OK (documentado)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "const enviada = JSON.parse(pm.collectionVariables.get(\"reservaEnviada\"));",
+                  "",
+                  "pm.test(\"Contrato: resposta segue o JSON Schema de criação\", function () {",
+                  "    const schema = JSON.parse(pm.collectionVariables.get(\"schemaCreate\")); // JSON Schema guardado na collection",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test(\"Reserva devolvida é igual à enviada (incluindo objeto aninhado de datas)\", function () {",
+                  "    pm.expect(corpo.booking).to.eql(enviada);",
+                  "});",
+                  "",
+                  "// Captura o ID gerado para as próximas etapas do ciclo CRUD",
+                  "pm.collectionVariables.set(\"bookingId\", corpo.bookingid);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{{reservaEnviada}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-006 | GET | Consultar a reserva criada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-006 - READ da reserva criada no CT-005 (integração por variável).",
+                  "pm.test(\"Status HTTP 200 OK (documentado)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Contrato: resposta segue o JSON Schema de reserva\", function () {",
+                  "    const schema = JSON.parse(pm.collectionVariables.get(\"schemaBooking\")); // JSON Schema guardado na collection",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test(\"Dados consultados são iguais aos enviados\", function () {",
+                  "    const enviada = JSON.parse(pm.collectionVariables.get(\"reservaEnviada\"));",
+                  "    pm.expect(pm.response.json()).to.eql(enviada);",
+                  "});",
+                  "",
+                  "pm.test(\"depositpaid é booleano e totalprice é número\", function () {",
+                  "    const r = pm.response.json();",
+                  "    pm.expect(r.depositpaid).to.be.a(\"boolean\");",
+                  "    pm.expect(r.totalprice).to.be.a(\"number\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-007 | GET | Buscar a reserva pelo nome (filtro)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-007 - GetBookingIds com filtro. O sobrenome é único por execução.",
+                  "pm.test(\"Status HTTP 200 OK (documentado)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Contrato: resposta segue o JSON Schema de lista de IDs\", function () {",
+                  "    const schema = JSON.parse(pm.collectionVariables.get(\"schemaIds\")); // JSON Schema guardado na collection",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test(\"A lista filtrada contém o ID criado no CT-005\", function () {",
+                  "    const ids = pm.response.json().map(item => item.bookingid);",
+                  "    pm.expect(ids).to.include(Number(pm.collectionVariables.get(\"bookingId\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking?firstname=Ana&lastname=QA-Portfolio-{{runId}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-008 | PUT | Atualizar a reserva com token (Cookie)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Pre-request: nova versão completa da reserva (PUT substitui todos os campos)",
+                  "const atualizada = {",
+                  "    firstname: \"Ana\",",
+                  "    lastname: \"QA-Portfolio-\" + pm.collectionVariables.get(\"runId\"),",
+                  "    totalprice: 320,",
+                  "    depositpaid: false,",
+                  "    bookingdates: { checkin: \"2026-12-01\", checkout: \"2026-12-05\" },",
+                  "    additionalneeds: \"Late checkout\"",
+                  "};",
+                  "pm.collectionVariables.set(\"reservaAtualizada\", JSON.stringify(atualizada));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-008 - UPDATE completo. A documentação exige o token no header Cookie (token=...).",
+                  "pm.test(\"Status HTTP 200 OK (documentado)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Contrato: resposta segue o JSON Schema de reserva\", function () {",
+                  "    const schema = JSON.parse(pm.collectionVariables.get(\"schemaBooking\")); // JSON Schema guardado na collection",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test(\"Resposta traz os novos valores enviados\", function () {",
+                  "    const enviada = JSON.parse(pm.collectionVariables.get(\"reservaAtualizada\"));",
+                  "    pm.expect(pm.response.json()).to.eql(enviada);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{{reservaAtualizada}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-009 | GET | Validar que a atualização foi gravada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-009 - Confirma a persistência do PUT com uma nova consulta (não confia só na resposta do PUT).",
+                  "pm.test(\"Status HTTP 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Reserva consultada reflete a atualização\", function () {",
+                  "    const enviada = JSON.parse(pm.collectionVariables.get(\"reservaAtualizada\"));",
+                  "    pm.expect(pm.response.json()).to.eql(enviada);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-010 | PATCH | Atualizar parcialmente com token (Cookie)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-010 - PartialUpdateBooking: só additionalneeds muda; o resto deve ser preservado.",
+                  "pm.test(\"Status HTTP 200 OK (documentado)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const r = pm.response.json();",
+                  "const anterior = JSON.parse(pm.collectionVariables.get(\"reservaAtualizada\"));",
+                  "",
+                  "pm.test(\"Campo enviado foi alterado\", function () {",
+                  "    pm.expect(r.additionalneeds).to.eql(\"Berco no quarto\");",
+                  "});",
+                  "",
+                  "pm.test(\"Campos não enviados foram preservados\", function () {",
+                  "    pm.expect(r.totalprice).to.eql(anterior.totalprice);",
+                  "    pm.expect(r.depositpaid).to.eql(anterior.depositpaid);",
+                  "    pm.expect(r.bookingdates).to.eql(anterior.bookingdates);",
+                  "});",
+                  "",
+                  "// Atualiza o \"estado esperado\" da reserva para as próximas verificações",
+                  "anterior.additionalneeds = r.additionalneeds;",
+                  "pm.collectionVariables.set(\"reservaAtualizada\", JSON.stringify(anterior));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"additionalneeds\": \"Berco no quarto\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-011 | PATCH | Atualizar parcialmente com Basic Auth (alternativa documentada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-011 - A documentação aceita \"Authorization: Basic\" como alternativa ao Cookie.",
+                  "// Aqui a aba Authorization do Postman (tipo Basic Auth) monta o header a partir do ambiente.",
+                  "pm.test(\"Status HTTP 200 OK (documentado)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"totalprice foi alterado para 280\", function () {",
+                  "    pm.expect(pm.response.json().totalprice).to.eql(280);",
+                  "});",
+                  "",
+                  "const estado = JSON.parse(pm.collectionVariables.get(\"reservaAtualizada\"));",
+                  "estado.totalprice = 280;",
+                  "pm.collectionVariables.set(\"reservaAtualizada\", JSON.stringify(estado));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"totalprice\": 280\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{username}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Acesso protegido",
+      "description": "Tentativas sem autenticação ou com credenciais inválidas e verificação de integridade.",
+      "item": [
+        {
+          "name": "CT-012 | PUT | Bloquear atualização sem autenticação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-012 - PUT sem Cookie e sem Authorization.",
+                  "// A documentação não define o código de erro. HTTP (RFC 9110) prevê 401 ou 403 para acesso negado.",
+                  "// Na exploração, a API respondeu 403 Forbidden.",
+                  "pm.test(\"Acesso negado: status 401 ou 403\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Invasor\",\n  \"lastname\": \"Sem-Token\",\n  \"totalprice\": 1,\n  \"depositpaid\": true,\n  \"bookingdates\": { \"checkin\": \"2026-01-01\", \"checkout\": \"2026-01-02\" }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-013 | PUT | Bloquear atualização com token inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-013 - PUT com um token que não foi emitido pela API.",
+                  "// A documentação não define o código de erro. HTTP (RFC 9110) prevê 401 ou 403 para acesso negado.",
+                  "// Na exploração, a API respondeu 403 Forbidden.",
+                  "pm.test(\"Acesso negado: status 401 ou 403\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "token=token-invalido-de-teste"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Invasor\",\n  \"lastname\": \"Token-Falso\",\n  \"totalprice\": 1,\n  \"depositpaid\": true,\n  \"bookingdates\": { \"checkin\": \"2026-01-01\", \"checkout\": \"2026-01-02\" }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-014 | PATCH | Bloquear atualização com Basic Auth inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-014 - PATCH com senha errada no Basic Auth.",
+                  "// A documentação não define o código de erro. HTTP (RFC 9110) prevê 401 ou 403 para acesso negado.",
+                  "// Na exploração, a API respondeu 403 Forbidden.",
+                  "pm.test(\"Acesso negado: status 401 ou 403\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Invasor\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{username}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{invalidPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "CT-015 | DELETE | Bloquear exclusão sem autenticação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-015 - DELETE sem Cookie e sem Authorization.",
+                  "// A documentação não define o código de erro. HTTP (RFC 9110) prevê 401 ou 403 para acesso negado.",
+                  "// Na exploração, a API respondeu 403 Forbidden.",
+                  "pm.test(\"Acesso negado: status 401 ou 403\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-016 | GET | Confirmar que a reserva não mudou após acessos negados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-016 - Integração: as tentativas dos CT-012 a CT-015 não podem ter alterado nem apagado a reserva.",
+                  "pm.test(\"Status HTTP 200 OK (reserva ainda existe)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Reserva continua igual ao último estado válido\", function () {",
+                  "    const esperado = JSON.parse(pm.collectionVariables.get(\"reservaAtualizada\"));",
+                  "    pm.expect(pm.response.json()).to.eql(esperado);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Exclusao",
+      "description": "Exclusão da reserva criada e comportamento após a exclusão.",
+      "item": [
+        {
+          "name": "CT-017 | DELETE | Excluir a reserva criada com token (Cookie)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-017 - DELETE. A documentação define 201 Created como sucesso (incomum, mas é o contrato).",
+                  "pm.test(\"Status HTTP 201 Created (documentado)\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-018 | GET | Confirmar que a reserva excluída não existe mais",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-018 - Comportamento após a exclusão.",
+                  "pm.test(\"Status HTTP 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-019 | DELETE | Excluir novamente a mesma reserva",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-019 - Exclusão repetida. A documentação não define o resultado.",
+                  "// Requisito do teste: não pode haver sucesso (2xx) nem erro de servidor (5xx); deve ser um 4xx.",
+                  "pm.test(\"Status HTTP na faixa 4xx\", function () {",
+                  "    pm.expect(pm.response.code).to.be.within(400, 499);",
+                  "});",
+                  "",
+                  "console.log(\"CT-019 - status observado na exclusão repetida:\", pm.response.code);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/{{bookingId}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Negativos",
+      "description": "IDs inexistentes ou inválidos e JSON malformado.",
+      "item": [
+        {
+          "name": "CT-020 | GET | Consultar reserva com ID inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-020 - ID que não existe.",
+                  "pm.test(\"Status HTTP 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/999999999",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-021 | GET | Consultar reserva com ID não numérico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-021 - Identificador em formato incorreto.",
+                  "pm.test(\"Status HTTP 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Não retorna erro de servidor (5xx)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking/abc",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-022 | POST | Criar reserva com JSON malformado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-022 - Corpo que não é JSON válido.",
+                  "pm.test(\"Status HTTP 400 Bad Request\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Ana\",\n  \"lastname\":",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Defeitos conhecidos",
+      "description": "Cenários que reprovam por divergência com o requisito de teste. Executados em etapa separada no CI.",
+      "item": [
+        {
+          "name": "CT-023 | POST | Criar reserva sem o campo obrigatório firstname",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-023 - Campo obrigatório ausente (firstname é obrigatório na documentação).",
+                  "// Requisito do teste (RFC 9110): erro do cliente deve gerar 4xx, nunca 5xx.",
+                  "pm.test(\"Status HTTP 400 Bad Request\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Não retorna erro de servidor (5xx)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lastname\": \"Sem-Firstname\",\n  \"totalprice\": 100,\n  \"depositpaid\": true,\n  \"bookingdates\": { \"checkin\": \"2026-11-10\", \"checkout\": \"2026-11-12\" }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-024 | POST | Criar reserva sem o objeto bookingdates",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-024 - Objeto aninhado obrigatório ausente.",
+                  "pm.test(\"Status HTTP 400 Bad Request\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Não retorna erro de servidor (5xx)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Ana\",\n  \"lastname\": \"Sem-Datas\",\n  \"totalprice\": 100,\n  \"depositpaid\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "CT-025 | POST | Criar reserva com Content-Type não suportado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// CT-025 - Formato incorreto: corpo em texto puro.",
+                  "// Requisito do teste (RFC 9110): formato não suportado deve gerar 415 (ou 400), nunca 5xx.",
+                  "pm.test(\"Status HTTP 400 ou 415\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 415]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "firstname=Ana;lastname=Texto-Puro",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Data-Driven",
+      "description": "Executar com -d data/<arquivo>.json. Sem arquivo de dados, as requisições são puladas.",
+      "item": [
+        {
+          "name": "DD-01 | POST | Criar reserva com dados do arquivo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Pre-request do Data-Driven: lê a linha atual do arquivo de dados (JSON).",
+                  "// Sem arquivo de dados (ex.: execução da collection inteira), a requisição é pulada.",
+                  "if (!pm.iterationData.has(\"caso\")) {",
+                  "    pm.execution.skipRequest();",
+                  "} else {",
+                  "    // payload é um objeto no arquivo JSON: os tipos (número, booleano, texto) são preservados",
+                  "    const payload = pm.iterationData.get(\"payload\");",
+                  "    pm.collectionVariables.set(\"ddBody\", JSON.stringify(payload));",
+                  "    pm.collectionVariables.unset(\"ddBookingId\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// DD-01 - Executado uma vez por linha do arquivo de dados.",
+                  "const caso = pm.iterationData.get(\"caso\");",
+                  "const esperado = pm.iterationData.get(\"expectedStatus\");",
+                  "const payload = pm.iterationData.get(\"payload\");",
+                  "",
+                  "pm.test(caso + \" | Status HTTP \" + esperado, function () {",
+                  "    pm.response.to.have.status(esperado);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    // Guarda o ID para a limpeza no DD-02 (apenas registros criados por esta execução)",
+                  "    pm.collectionVariables.set(\"ddBookingId\", corpo.bookingid);",
+                  "",
+                  "    pm.test(caso + \" | Contrato: JSON Schema de criação\", function () {",
+                  "        const schema = JSON.parse(pm.collectionVariables.get(\"schemaCreate\")); // JSON Schema guardado na collection",
+                  "        pm.response.to.have.jsonSchema(schema);",
+                  "    });",
+                  "",
+                  "    pm.test(caso + \" | Dados gravados exatamente como enviados\", function () {",
+                  "        pm.expect(corpo.booking).to.eql(payload);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/booking",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{{ddBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "DD-02 | DELETE | Limpar reserva criada na iteração",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Só executa a limpeza se o DD-01 criou um registro nesta iteração",
+                  "if (!pm.iterationData.has(\"caso\") || !pm.collectionVariables.get(\"ddBookingId\")) {",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// DD-02 - Limpeza: exclui somente a reserva criada pelo DD-01 (Basic Auth documentado).",
+                  "pm.test(pm.iterationData.get(\"caso\") + \" | Limpeza: reserva excluída (201)\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.unset(\"ddBookingId\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/booking/{{ddBookingId}}",
+            "description": "",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{username}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "99 - Encerramento",
+      "description": "Limpeza das variáveis temporárias (token e IDs).",
+      "item": [
+        {
+          "name": "TD-01 | GET | Encerrar execução e limpar variáveis temporárias",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// TD-01 - Encerramento: confirma que a API segue no ar e apaga o token e os IDs temporários.",
+                  "pm.test(\"Status HTTP 201 Created (HealthCheck)\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "[\"token\", \"bookingId\", \"runId\", \"reservaEnviada\", \"reservaAtualizada\", \"ddBody\", \"ddBookingId\"]",
+                  "    .forEach(v => pm.collectionVariables.unset(v));",
+                  "",
+                  "pm.test(\"Token temporário removido da collection\", function () {",
+                  "    pm.expect(pm.collectionVariables.get(\"token\")).to.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ping",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// ===== Verificação aplicada a TODAS as requisições (nível da collection) =====",
+          "// Garante tempo de resposta abaixo do limite definido no ambiente.",
+          "// Requisições puladas (Data-Driven sem arquivo) não chegam a este script.",
+          "const limite = Number(pm.environment.get(\"maxResponseTime\") || 5000);",
+          "pm.test(\"[Geral] Tempo de resposta abaixo de \" + limite + \" ms\", function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(limite);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "schemaAuth",
+      "value": "{\"$schema\": \"http://json-schema.org/draft-07/schema#\", \"title\": \"CreateTokenResponse\", \"type\": \"object\", \"required\": [\"token\"], \"properties\": {\"token\": {\"type\": \"string\", \"minLength\": 1}}, \"additionalProperties\": false}"
+    },
+    {
+      "key": "schemaBooking",
+      "value": "{\"$schema\": \"http://json-schema.org/draft-07/schema#\", \"title\": \"Booking\", \"description\": \"Reserva conforme a documentação GetBooking/CreateBooking do Restful-Booker\", \"type\": \"object\", \"required\": [\"firstname\", \"lastname\", \"totalprice\", \"depositpaid\", \"bookingdates\"], \"properties\": {\"firstname\": {\"type\": \"string\"}, \"lastname\": {\"type\": \"string\"}, \"totalprice\": {\"type\": \"number\"}, \"depositpaid\": {\"type\": \"boolean\"}, \"bookingdates\": {\"type\": \"object\", \"required\": [\"checkin\", \"checkout\"], \"properties\": {\"checkin\": {\"type\": \"string\", \"pattern\": \"^[0-9]{4}-[0-9]{2}-[0-9]{2}$\"}, \"checkout\": {\"type\": \"string\", \"pattern\": \"^[0-9]{4}-[0-9]{2}-[0-9]{2}$\"}}}, \"additionalneeds\": {\"type\": \"string\"}}}"
+    },
+    {
+      "key": "schemaCreate",
+      "value": "{\"$schema\": \"http://json-schema.org/draft-07/schema#\", \"title\": \"CreateBookingResponse\", \"type\": \"object\", \"required\": [\"bookingid\", \"booking\"], \"properties\": {\"bookingid\": {\"type\": \"integer\", \"minimum\": 1}, \"booking\": {\"title\": \"Booking\", \"description\": \"Reserva conforme a documentação GetBooking/CreateBooking do Restful-Booker\", \"type\": \"object\", \"required\": [\"firstname\", \"lastname\", \"totalprice\", \"depositpaid\", \"bookingdates\"], \"properties\": {\"firstname\": {\"type\": \"string\"}, \"lastname\": {\"type\": \"string\"}, \"totalprice\": {\"type\": \"number\"}, \"depositpaid\": {\"type\": \"boolean\"}, \"bookingdates\": {\"type\": \"object\", \"required\": [\"checkin\", \"checkout\"], \"properties\": {\"checkin\": {\"type\": \"string\", \"pattern\": \"^[0-9]{4}-[0-9]{2}-[0-9]{2}$\"}, \"checkout\": {\"type\": \"string\", \"pattern\": \"^[0-9]{4}-[0-9]{2}-[0-9]{2}$\"}}}, \"additionalneeds\": {\"type\": \"string\"}}}}}"
+    },
+    {
+      "key": "schemaIds",
+      "value": "{\"$schema\": \"http://json-schema.org/draft-07/schema#\", \"title\": \"GetBookingIdsResponse\", \"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"bookingid\"], \"properties\": {\"bookingid\": {\"type\": \"integer\"}}}}"
+    }
+  ]
+}
