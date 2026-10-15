@@ -30,7 +30,7 @@ jobs:
 
       - name: Instalar o Postman CLI (instalador oficial da Postman)
         run: |
-          curl -o- "https://dl-cli.pstmn.io/install/linux64.sh" | sh
+          curl -o- "https://dl-cli.pstmn.io/install/unix.sh" | sh
           postman --version
           mkdir -p reports
 
