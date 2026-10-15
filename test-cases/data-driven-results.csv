@@ -1,0 +1,10 @@
+﻿Caso,Arquivo,Descrição,Esperado,Obtido (CI run #1),Verificações reprovadas,Situação,Classificação
+DD-V01,bookings-valid.json,Reserva padrão com todos os campos,200 + schema + dados iguais,Conforme esperado; limpeza 201,0,Aprovado,Comportamento esperado
+DD-V02,bookings-valid.json,Nomes com acentos e cedilha,200 + schema + dados iguais,Conforme esperado; limpeza 201,0,Aprovado,Comportamento esperado
+DD-V03,bookings-valid.json,totalprice = 0,200 + schema + dados iguais,Conforme esperado; limpeza 201,0,Aprovado,Comportamento esperado
+DD-V04,bookings-valid.json,totalprice = 999999,200 + schema + dados iguais,Conforme esperado; limpeza 201,0,Aprovado,Comportamento esperado
+DD-V05,bookings-valid.json,Sem additionalneeds (opcional),200 + schema + dados iguais,Conforme esperado; limpeza 201,0,Aprovado,Comportamento esperado
+DD-I01,bookings-invalid.json,Datas no formato DD/MM/AAAA,400,200; data reinterpretada e gravada diferente da enviada; limpeza 201,"2 (status, dados)",Reprovado,Defeito BUG-03
+DD-I02,bookings-invalid.json,Data impossível (mês 13),400,"200; data gravada inválida, reprovou no JSON Schema; limpeza 201","3 (status, schema, dados)",Reprovado,Defeito BUG-03
+DD-I03,bookings-invalid.json,totalprice como texto,400,"200; totalprice gravado como null, reprovou no JSON Schema; limpeza 201","3 (status, schema, dados)",Reprovado,Defeito BUG-04
+DD-I04,bookings-invalid.json,totalprice com decimais (199.9),200 + dados iguais,200; valor gravado diferente do enviado; limpeza 201,1 (dados),Reprovado,Defeito BUG-05
