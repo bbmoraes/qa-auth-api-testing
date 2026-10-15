@@ -1,0 +1,16 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+
+# Relatórios gerados localmente (o CI publica como artefato)
+reports/*.xml
+postman-cli-reports/
+newman/
+
+# Ambientes locais com dados sensíveis (nunca versionar)
+*.local.postman_environment.json
+.env
