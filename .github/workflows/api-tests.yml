@@ -18,7 +18,7 @@ permissions:
 jobs:
   api-tests:
     name: Restful-Booker | Postman CLI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # versão fixa para execuções reproduzíveis
     timeout-minutes: 15
     env:
       COLLECTION: collections/qa-auth-api-tests.postman_collection.json
@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Baixar o repositório
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Instalar o Postman CLI (instalador oficial da Postman)
         run: |
@@ -84,7 +84,7 @@ jobs:
 
       - name: Publicar relatórios JUnit
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: relatorios-junit
           path: reports/
