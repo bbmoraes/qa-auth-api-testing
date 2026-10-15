@@ -1,0 +1,81 @@
+[
+  {
+    "caso": "DD-V01",
+    "descricao": "Reserva padrão com todos os campos",
+    "expectedStatus": 200,
+    "payload": {
+      "firstname": "Carla",
+      "lastname": "DD-Teste",
+      "totalprice": 150,
+      "depositpaid": true,
+      "bookingdates": {
+        "checkin": "2026-11-10",
+        "checkout": "2026-11-12"
+      },
+      "additionalneeds": "Cafe da manha"
+    }
+  },
+  {
+    "caso": "DD-V02",
+    "descricao": "Nomes com acentos e cedilha",
+    "expectedStatus": 200,
+    "payload": {
+      "firstname": "João",
+      "lastname": "Conceição-DD",
+      "totalprice": 980,
+      "depositpaid": false,
+      "bookingdates": {
+        "checkin": "2027-01-05",
+        "checkout": "2027-01-09"
+      },
+      "additionalneeds": "Vista para o mar"
+    }
+  },
+  {
+    "caso": "DD-V03",
+    "descricao": "Valor total igual a zero (limite)",
+    "expectedStatus": 200,
+    "payload": {
+      "firstname": "Rafa",
+      "lastname": "DD-Zero",
+      "totalprice": 0,
+      "depositpaid": true,
+      "bookingdates": {
+        "checkin": "2026-12-20",
+        "checkout": "2026-12-21"
+      },
+      "additionalneeds": "Nenhuma"
+    }
+  },
+  {
+    "caso": "DD-V04",
+    "descricao": "Valor alto (limite superior de teste)",
+    "expectedStatus": 200,
+    "payload": {
+      "firstname": "Luiza",
+      "lastname": "DD-Alto",
+      "totalprice": 999999,
+      "depositpaid": true,
+      "bookingdates": {
+        "checkin": "2027-03-01",
+        "checkout": "2027-03-31"
+      },
+      "additionalneeds": "Suite"
+    }
+  },
+  {
+    "caso": "DD-V05",
+    "descricao": "Campo opcional additionalneeds ausente",
+    "expectedStatus": 200,
+    "payload": {
+      "firstname": "Teo",
+      "lastname": "DD-SemOpcional",
+      "totalprice": 210,
+      "depositpaid": false,
+      "bookingdates": {
+        "checkin": "2027-02-14",
+        "checkout": "2027-02-16"
+      }
+    }
+  }
+]

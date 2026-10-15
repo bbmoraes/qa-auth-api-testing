@@ -1,0 +1,66 @@
+[
+  {
+    "caso": "DD-I01",
+    "descricao": "Data no formato DD/MM/AAAA (fora do padrão AAAA-MM-DD)",
+    "expectedStatus": 400,
+    "payload": {
+      "firstname": "Bia",
+      "lastname": "DD-DataBR",
+      "totalprice": 150,
+      "depositpaid": true,
+      "bookingdates": {
+        "checkin": "10/11/2026",
+        "checkout": "12/11/2026"
+      },
+      "additionalneeds": "Teste"
+    }
+  },
+  {
+    "caso": "DD-I02",
+    "descricao": "Data impossível (mês 13, dia 45)",
+    "expectedStatus": 400,
+    "payload": {
+      "firstname": "Bia",
+      "lastname": "DD-DataImpossivel",
+      "totalprice": 150,
+      "depositpaid": true,
+      "bookingdates": {
+        "checkin": "2026-13-45",
+        "checkout": "2026-14-50"
+      },
+      "additionalneeds": "Teste"
+    }
+  },
+  {
+    "caso": "DD-I03",
+    "descricao": "totalprice como texto",
+    "expectedStatus": 400,
+    "payload": {
+      "firstname": "Bia",
+      "lastname": "DD-PrecoTexto",
+      "totalprice": "cento e cinquenta",
+      "depositpaid": true,
+      "bookingdates": {
+        "checkin": "2026-11-10",
+        "checkout": "2026-11-12"
+      },
+      "additionalneeds": "Teste"
+    }
+  },
+  {
+    "caso": "DD-I04",
+    "descricao": "totalprice com casas decimais (deve ser gravado sem perda)",
+    "expectedStatus": 200,
+    "payload": {
+      "firstname": "Bia",
+      "lastname": "DD-Decimal",
+      "totalprice": 199.9,
+      "depositpaid": true,
+      "bookingdates": {
+        "checkin": "2026-11-10",
+        "checkout": "2026-11-12"
+      },
+      "additionalneeds": "Teste"
+    }
+  }
+]
