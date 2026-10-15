@@ -1,0 +1,91 @@
+# Executa a collection do projeto com o Postman CLI, usando somente arquivos versionados
+# neste repositório (collection, ambiente e dados). Não usa chave de API do Postman.
+name: API Tests (Postman CLI)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "collections/**"
+      - "environments/**"
+      - "data/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-tests:
+    name: Restful-Booker | Postman CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COLLECTION: collections/qa-auth-api-tests.postman_collection.json
+      ENVIRONMENT: environments/restful-booker.postman_environment.json
+
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar o Postman CLI (instalador oficial da Postman)
+        run: |
+          curl -o- "https://dl-cli.pstmn.io/install/linux64.sh" | sh
+          postman --version
+          mkdir -p reports
+
+      # Etapa OBRIGATÓRIA: se qualquer verificação falhar, o workflow falha.
+      - name: Regressão obrigatória (autenticação, CRUD, acesso protegido, exclusão, negativos)
+        run: |
+          postman collection run "$COLLECTION" -e "$ENVIRONMENT" \
+            -i "01 - Autenticacao" -i "02 - CRUD" -i "03 - Acesso protegido" \
+            -i "04 - Exclusao" -i "05 - Negativos" -i "99 - Encerramento" \
+            -r cli,junit --reporter-junit-export reports/junit-regressao.xml
+
+      # Etapa OBRIGATÓRIA: Data-Driven com dados válidos (uma iteração por linha do arquivo).
+      - name: Data-Driven obrigatório (dados válidos)
+        run: |
+          postman collection run "$COLLECTION" -e "$ENVIRONMENT" \
+            -i "07 - Data-Driven" -d data/bookings-valid.json \
+            -r cli,junit --reporter-junit-export reports/junit-dd-validos.xml
+
+      # Etapas INFORMATIVAS: reúnem defeitos conhecidos da API (documentados em bug-reports/).
+      # Rodam sempre e aparecem no resumo, mas não bloqueiam o workflow.
+      - name: Defeitos conhecidos (informativo, não bloqueia)
+        id: known_defects
+        continue-on-error: true
+        run: |
+          postman collection run "$COLLECTION" -e "$ENVIRONMENT" \
+            -i "06 - Defeitos conhecidos" \
+            -r cli,junit --reporter-junit-export reports/junit-defeitos-conhecidos.xml
+
+      - name: Data-Driven com dados inválidos (informativo, não bloqueia)
+        id: dd_invalid
+        continue-on-error: true
+        run: |
+          postman collection run "$COLLECTION" -e "$ENVIRONMENT" \
+            -i "07 - Data-Driven" -d data/bookings-invalid.json \
+            -r cli,junit --reporter-junit-export reports/junit-dd-invalidos.xml
+
+      - name: Resumo da execução
+        if: always()
+        run: |
+          {
+            echo "## Resultado dos testes de API"
+            echo ""
+            echo "| Etapa | Tipo | Resultado |"
+            echo "|---|---|---|"
+            echo "| Regressão obrigatória | bloqueia | ${{ job.status }} (ver etapas acima) |"
+            echo "| Defeitos conhecidos | informativa | ${{ steps.known_defects.outcome }} |"
+            echo "| Data-Driven inválidos | informativa | ${{ steps.dd_invalid.outcome }} |"
+            echo ""
+            echo "Etapas informativas com resultado **failure** confirmam que os defeitos documentados em bug-reports/ continuam presentes na API."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar relatórios JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios-junit
+          path: reports/
+          if-no-files-found: warn
